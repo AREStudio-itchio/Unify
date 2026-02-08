@@ -1,7 +1,6 @@
 // cstocpp.cpp
 // Transpilador simple C# -> C++ para el flujo tiny2d/unify
 // - using ns.sub -> #include "ns/sub.h" (comillas, librería local)
-// - identificadores con puntos -> :: (tiny2d.Draw -> tiny2d::Draw)
 // - static int/void Main() -> int WINAPI WinMain(...)
 // - cuenta llaves y cierra bloques abiertos al final si hace falta
 // - incluye únicos y ordenados
@@ -12,7 +11,6 @@
 #include <regex>
 #include <vector>
 #include <set>
-#include <cctype>
 #include <algorithm>
 
 static std::string trim(const std::string& s) {
@@ -20,23 +18,6 @@ static std::string trim(const std::string& s) {
     if (start == std::string::npos) return "";
     size_t end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
-}
-
-static std::string replaceDots(const std::string& input) {
-    std::string out;
-    out.reserve(input.size());
-    for (size_t i = 0; i < input.size(); ++i) {
-        if (input[i] == '.' &&
-            i > 0 && i + 1 < input.size() &&
-            (std::isalnum(static_cast<unsigned char>(input[i - 1])) || input[i-1]=='_') &&
-            (std::isalnum(static_cast<unsigned char>(input[i + 1])) || input[i+1]=='_')) 
-        {
-            out += "::";
-        } else {
-            out += input[i];
-        }
-    }
-    return out;
 }
 
 int main(int argc, char** argv) {
@@ -85,7 +66,6 @@ int main(int argc, char** argv) {
 
         // 2) Detectar inicio de Main (static int/void Main)
         if (std::regex_search(t, m, mainRx)) {
-            // Abrimos WinMain (firma Windows)
             inMain = true;
             mainBraceCount = 0;
             body.push_back("int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {");
@@ -95,12 +75,6 @@ int main(int argc, char** argv) {
         else if (std::regex_search(t, m, classRx)) {
             insideClass = true;
             classBraceCount = 0;
-            // No escribir la declaración de la clase
-            // Si la línea contiene '{' en la misma línea, contaremos abajo
-            // Continuar para contar llaves
-        }
-        else {
-            // Ninguna detección especial: seguir al procesamiento normal
         }
 
         // 4) Contar llaves en la línea para main y clase
@@ -117,68 +91,55 @@ int main(int argc, char** argv) {
 
         // 5) Si estamos dentro de main, procesar su contenido
         if (inMain) {
-            // Si la línea es exactamente "{" justo después de la firma, la omitimos
-            if (t == "{") {
-                continue;
-            }
-            // Si la línea es "}" y mainBraceCount <= 0, cerramos main
+            if (t == "{") continue;
             if (t == "}" && mainBraceCount <= 0) {
                 body.push_back("}");
                 inMain = false;
                 mainBraceCount = 0;
                 continue;
             }
-            // Añadir la línea traducida dentro de WinMain
-            std::string replaced = replaceDots(line);
-            body.push_back(replaced);
+            body.push_back(line);
             continue;
         }
 
         // 6) Si estamos dentro de clase, omitimos la declaración de clase y su cuerpo
         if (insideClass) {
-            // Si encontramos cierre de clase y classBraceCount <= 0, terminamos la clase
             if (t == "}" && classBraceCount <= 0) {
                 insideClass = false;
                 classBraceCount = 0;
                 continue;
             }
-            // Omitimos todo el contenido de la clase (no lo escribimos)
             continue;
         }
 
-        // 7) Fuera de main y fuera de clase: traducir y añadir
-        std::string replaced = replaceDots(line);
-        body.push_back(replaced);
+        // 7) Fuera de main y fuera de clase: añadir la línea tal cual
+        body.push_back(line);
     }
 
-    // Si al final del archivo main quedó abierto, cerrarlo correctamente
+    // Cierre de main si quedó abierto
     if (inMain) {
-        // Si hay llaves pendientes, cerrarlas
         while (mainBraceCount > 0) {
             body.push_back("}");
             mainBraceCount--;
         }
-        // Asegurar cierre final de WinMain
         body.push_back("}");
         inMain = false;
     }
 
-    // Si una clase quedó abierta, cerrarla silenciosamente (no escribimos la clase)
+    // Cierre silencioso de clase si quedó abierta
     if (insideClass) {
         insideClass = false;
     }
 
     // Escribir includes (ordenados y únicos)
-    std::vector<std::string> includes;
-    includes.reserve(includeSet.size());
-    for (const auto &inc : includeSet) includes.push_back(inc);
+    std::vector<std::string> includes(includeSet.begin(), includeSet.end());
     std::sort(includes.begin(), includes.end());
-    for (const auto &inc : includes) fout << inc << "\n";
+    for (const auto& inc : includes) fout << inc << "\n";
     if (!includes.empty()) fout << "\n";
 
-    // Compactar líneas vacías: evitar múltiples líneas vacías seguidas
+    // Escribir cuerpo, evitando líneas vacías duplicadas
     bool lastEmpty = false;
-    for (auto &l : body) {
+    for (auto& l : body) {
         std::string t = trim(l);
         if (t.empty()) {
             if (!lastEmpty) {
