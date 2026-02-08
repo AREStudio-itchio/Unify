@@ -5,6 +5,9 @@
 Unify requiere tener instalado G++ desde MSYS2 (MinGW), y añadir el bin de G++ en el PATH del sistema.
 Añadir la carpeta del proyecto Unify en el PATH del sistema.
 
+# Consejo
+Como usamos un compilador para traducirlo todo a C++, si algo no funciona bien porque el compilador no conoce esa funcionalidad, puedes escribirlo tal cual como en C++, porque las funciones que no son detectadas como C#, son copiadas tal cual, lo que significa que puedes ejecutarlo como código C++.
+
 # Uso
 Usa Unify de la siguiente manera:
 ```cmd
