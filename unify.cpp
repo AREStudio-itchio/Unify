@@ -85,6 +85,7 @@ bool tiny2D_Init() {
 }
 
 bool tiny2D_Update(float dt) {
+    ClearBackground(color.BLACK);
     DrawText2D("Hello from PROYECTO!", 20, 20, RGB(255,255,255));
     return true;
 }
