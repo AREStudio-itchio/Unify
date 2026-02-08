@@ -1,0 +1,1 @@
+Install g++ using MSYS2 (MinGW) and add the g++ bin on the environment path.

@@ -1,0 +1,3 @@
+Este proyecto usa:
+cstocpp para compilar el código C# a código C++ para luego ser compilado con G++ (G++ no incluido)
+tiny2d como motor del juego programado
